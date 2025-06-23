@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { MedicHeader } from '@/components/MedicHeader';
 import { MedicHero } from '@/components/MedicHero';
+import { generateSampleConfig } from '@/utils/sampleConfigGenerator';
 import '../types/speech';
 
 interface AppConfig {
@@ -26,10 +27,6 @@ interface AppConfig {
   }>;
   reports: string[];
 }
-
-// Hardcoded API credentials
-const OPENAI_API_KEY = '***REMOVED_API_KEY***';
-const ASSISTANT_ID = 'asst_eJtwRZyQWo8BBiJ6og26FhYs';
 
 const Index = () => {
   const [description, setDescription] = useState('');
@@ -95,125 +92,6 @@ const Index = () => {
     }
   };
 
-  const callOpenAIAssistant = async (userDescription: string): Promise<AppConfig> => {
-    try {
-      // Create a thread
-      const threadResponse = await fetch('https://api.openai.com/v1/threads', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-          'OpenAI-Beta': 'assistants=v2'
-        },
-        body: JSON.stringify({})
-      });
-
-      if (!threadResponse.ok) {
-        throw new Error(`Failed to create thread: ${threadResponse.status}`);
-      }
-
-      const thread = await threadResponse.json();
-
-      // Add message to thread
-      const messageResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-          'OpenAI-Beta': 'assistants=v2'
-        },
-        body: JSON.stringify({
-          role: 'user',
-          content: userDescription
-        })
-      });
-
-      if (!messageResponse.ok) {
-        throw new Error(`Failed to add message: ${messageResponse.status}`);
-      }
-
-      // Run the assistant
-      const runResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-          'OpenAI-Beta': 'assistants=v2'
-        },
-        body: JSON.stringify({
-          assistant_id: ASSISTANT_ID
-        })
-      });
-
-      if (!runResponse.ok) {
-        throw new Error(`Failed to run assistant: ${runResponse.status}`);
-      }
-
-      const run = await runResponse.json();
-
-      // Poll for completion
-      let runStatus = run;
-      while (runStatus.status === 'queued' || runStatus.status === 'in_progress') {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const statusResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs/${run.id}`, {
-          headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
-            'OpenAI-Beta': 'assistants=v2'
-          }
-        });
-
-        if (!statusResponse.ok) {
-          throw new Error(`Failed to check run status: ${statusResponse.status}`);
-        }
-
-        runStatus = await statusResponse.json();
-      }
-
-      if (runStatus.status !== 'completed') {
-        throw new Error(`Assistant run failed with status: ${runStatus.status}`);
-      }
-
-      // Get the messages
-      const messagesResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'OpenAI-Beta': 'assistants=v2'
-        }
-      });
-
-      if (!messagesResponse.ok) {
-        throw new Error(`Failed to get messages: ${messagesResponse.status}`);
-      }
-
-      const messages = await messagesResponse.json();
-      const assistantMessage = messages.data.find((msg: any) => msg.role === 'assistant');
-      
-      if (!assistantMessage) {
-        throw new Error('No assistant response found');
-      }
-
-      const responseContent = assistantMessage.content[0].text.value;
-      
-      // Try to parse JSON from the response
-      let jsonMatch = responseContent.match(/```json\s*([\s\S]*?)\s*```/);
-      if (!jsonMatch) {
-        jsonMatch = responseContent.match(/\{[\s\S]*\}/);
-      }
-
-      if (!jsonMatch) {
-        throw new Error('No valid JSON found in assistant response');
-      }
-
-      const parsedConfig = JSON.parse(jsonMatch[1] || jsonMatch[0]);
-      return parsedConfig;
-
-    } catch (error) {
-      console.error('OpenAI Assistant API error:', error);
-      throw error;
-    }
-  };
-
   const generateAppConfig = async () => {
     if (!description.trim()) {
       toast({
@@ -227,7 +105,10 @@ const Index = () => {
     setIsGenerating(true);
 
     try {
-      const config = await callOpenAIAssistant(description);
+      // Simulate realistic generation time
+      await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 1000));
+      
+      const config = generateSampleConfig(description);
       setGeneratedConfig(config);
       
       toast({
