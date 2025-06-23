@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Mic, MicOff, Download, Rocket, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,7 +36,7 @@ const Index = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedConfig, setGeneratedConfig] = useState<AppConfig | null>(null);
-  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
+  const [recognition, setRecognition] = useState<InstanceType<typeof SpeechRecognition> | null>(null);
   const { toast } = useToast();
 
   const startVoiceRecording = () => {
