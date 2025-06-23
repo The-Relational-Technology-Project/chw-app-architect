@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
-import { Mic, MicOff, Download, Rocket, RefreshCw, Loader2 } from 'lucide-react';
+
+import React, { useState, useEffect } from 'react';
+import { Mic, MicOff, Download, Rocket, RefreshCw, Loader2, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { MedicHeader } from '@/components/MedicHeader';
 import { MedicHero } from '@/components/MedicHero';
@@ -26,13 +29,37 @@ interface AppConfig {
   reports: string[];
 }
 
+interface OpenAISettings {
+  apiKey: string;
+  assistantId: string;
+}
+
 const Index = () => {
   const [description, setDescription] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedConfig, setGeneratedConfig] = useState<AppConfig | null>(null);
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
+  const [openAISettings, setOpenAISettings] = useState<OpenAISettings>({
+    apiKey: '***REMOVED_API_KEY***',
+    assistantId: 'asst_eJtwRZyQWo8BBiJ6og26FhYs'
+  });
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { toast } = useToast();
+
+  // Load settings from localStorage on component mount
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('openai-settings');
+    if (savedSettings) {
+      const parsed = JSON.parse(savedSettings);
+      setOpenAISettings(prev => ({ ...prev, ...parsed }));
+    }
+  }, []);
+
+  // Save settings to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('openai-settings', JSON.stringify(openAISettings));
+  }, [openAISettings]);
 
   const startVoiceRecording = () => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -90,6 +117,125 @@ const Index = () => {
     }
   };
 
+  const callOpenAIAssistant = async (userDescription: string): Promise<AppConfig> => {
+    try {
+      // Create a thread
+      const threadResponse = await fetch('https://api.openai.com/v1/threads', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAISettings.apiKey}`,
+          'Content-Type': 'application/json',
+          'OpenAI-Beta': 'assistants=v2'
+        },
+        body: JSON.stringify({})
+      });
+
+      if (!threadResponse.ok) {
+        throw new Error(`Failed to create thread: ${threadResponse.status}`);
+      }
+
+      const thread = await threadResponse.json();
+
+      // Add message to thread
+      const messageResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAISettings.apiKey}`,
+          'Content-Type': 'application/json',
+          'OpenAI-Beta': 'assistants=v2'
+        },
+        body: JSON.stringify({
+          role: 'user',
+          content: userDescription
+        })
+      });
+
+      if (!messageResponse.ok) {
+        throw new Error(`Failed to add message: ${messageResponse.status}`);
+      }
+
+      // Run the assistant
+      const runResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAISettings.apiKey}`,
+          'Content-Type': 'application/json',
+          'OpenAI-Beta': 'assistants=v2'
+        },
+        body: JSON.stringify({
+          assistant_id: openAISettings.assistantId
+        })
+      });
+
+      if (!runResponse.ok) {
+        throw new Error(`Failed to run assistant: ${runResponse.status}`);
+      }
+
+      const run = await runResponse.json();
+
+      // Poll for completion
+      let runStatus = run;
+      while (runStatus.status === 'queued' || runStatus.status === 'in_progress') {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const statusResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs/${run.id}`, {
+          headers: {
+            'Authorization': `Bearer ${openAISettings.apiKey}`,
+            'OpenAI-Beta': 'assistants=v2'
+          }
+        });
+
+        if (!statusResponse.ok) {
+          throw new Error(`Failed to check run status: ${statusResponse.status}`);
+        }
+
+        runStatus = await statusResponse.json();
+      }
+
+      if (runStatus.status !== 'completed') {
+        throw new Error(`Assistant run failed with status: ${runStatus.status}`);
+      }
+
+      // Get the messages
+      const messagesResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
+        headers: {
+          'Authorization': `Bearer ${openAISettings.apiKey}`,
+          'OpenAI-Beta': 'assistants=v2'
+        }
+      });
+
+      if (!messagesResponse.ok) {
+        throw new Error(`Failed to get messages: ${messagesResponse.status}`);
+      }
+
+      const messages = await messagesResponse.json();
+      const assistantMessage = messages.data.find((msg: any) => msg.role === 'assistant');
+      
+      if (!assistantMessage) {
+        throw new Error('No assistant response found');
+      }
+
+      const responseContent = assistantMessage.content[0].text.value;
+      
+      // Try to parse JSON from the response
+      let jsonMatch = responseContent.match(/```json\s*([\s\S]*?)\s*```/);
+      if (!jsonMatch) {
+        jsonMatch = responseContent.match(/\{[\s\S]*\}/);
+      }
+
+      if (!jsonMatch) {
+        throw new Error('No valid JSON found in assistant response');
+      }
+
+      const parsedConfig = JSON.parse(jsonMatch[0]);
+      return parsedConfig;
+
+    } catch (error) {
+      console.error('OpenAI Assistant API error:', error);
+      throw error;
+    }
+  };
+
   const generateAppConfig = async () => {
     if (!description.trim()) {
       toast({
@@ -100,58 +246,36 @@ const Index = () => {
       return;
     }
 
+    if (!openAISettings.apiKey || !openAISettings.assistantId) {
+      toast({
+        title: "OpenAI settings required",
+        description: "Please configure your OpenAI API key and Assistant ID in settings.",
+        variant: "destructive",
+      });
+      setIsSettingsOpen(true);
+      return;
+    }
+
     setIsGenerating(true);
 
-    // Simulate API call - this would be replaced with actual Supabase Edge Function
-    setTimeout(() => {
-      const mockConfig: AppConfig = {
-        appName: "Community Health Tracker",
-        description: description,
-        forms: [
-          {
-            name: "Patient Registration",
-            purpose: "Register new patients in the community",
-            fields: ["Name", "Age", "Gender", "Address", "Phone", "Emergency Contact"]
-          },
-          {
-            name: "Health Assessment",
-            purpose: "Conduct regular health check-ups",
-            fields: ["Blood Pressure", "Weight", "Temperature", "Symptoms", "Medications"]
-          },
-          {
-            name: "Visit Report",
-            purpose: "Document home visits and follow-ups",
-            fields: ["Visit Date", "Patient", "Purpose", "Findings", "Next Steps"]
-          }
-        ],
-        tasks: [
-          {
-            type: "Home Visit",
-            description: "Visit expected for high-risk patients",
-            frequency: "Weekly"
-          },
-          {
-            type: "Medication Reminder",
-            description: "Follow up on medication compliance",
-            frequency: "Daily"
-          },
-          {
-            type: "Health Education",
-            description: "Conduct community health education sessions",
-            frequency: "Monthly"
-          }
-        ],
-        reports: ["Patient Summary", "Visit Statistics", "Health Outcomes", "Community Metrics"]
-      };
-
-      setGeneratedConfig(mockConfig);
-      setIsGenerating(false);
+    try {
+      const config = await callOpenAIAssistant(description);
+      setGeneratedConfig(config);
       
       toast({
         title: "App configuration generated!",
         description: "Your CHW app structure is ready for review.",
       });
-    }, 2000);
+    } catch (error) {
+      console.error('Generation error:', error);
+      toast({
+        title: "Generation failed",
+        description: "Failed to generate app configuration. Please check your settings and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const exportConfig = () => {
@@ -181,12 +305,59 @@ const Index = () => {
     });
   };
 
+  const saveSettings = () => {
+    setIsSettingsOpen(false);
+    toast({
+      title: "Settings saved",
+      description: "Your OpenAI configuration has been saved.",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <MedicHeader />
       <MedicHero />
       
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        {/* Settings Dialog */}
+        <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" className="fixed top-4 right-4 z-10">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>OpenAI Assistant Settings</DialogTitle>
+              <DialogDescription>
+                Configure your OpenAI API key and Assistant ID to generate CHT app configurations.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">OpenAI API Key</label>
+                <Input
+                  type="password"
+                  value={openAISettings.apiKey}
+                  onChange={(e) => setOpenAISettings(prev => ({ ...prev, apiKey: e.target.value }))}
+                  placeholder="sk-proj-..."
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Assistant ID</label>
+                <Input
+                  value={openAISettings.assistantId}
+                  onChange={(e) => setOpenAISettings(prev => ({ ...prev, assistantId: e.target.value }))}
+                  placeholder="asst_..."
+                />
+              </div>
+              <Button onClick={saveSettings} className="w-full">
+                Save Settings
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Input Section */}
         <Card className="shadow-lg border-0 bg-white">
           <CardHeader>
