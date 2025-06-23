@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Mic, MicOff, Download, Rocket, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { MedicHeader } from '@/components/MedicHeader';
+import { MedicHero } from '@/components/MedicHero';
 import '../types/speech';
 
 interface AppConfig {
@@ -180,26 +183,19 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 p-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center py-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Build a CHW App
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Describe the kind of app you want to create. We'll generate the structure using the Community Health Toolkit.
-          </p>
-        </div>
-
+    <div className="min-h-screen bg-gray-50">
+      <MedicHeader />
+      <MedicHero />
+      
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         {/* Input Section */}
-        <Card className="shadow-lg border-0">
+        <Card className="shadow-lg border-0 bg-white">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              🏥 Describe Your App
+            <CardTitle className="flex items-center gap-2 text-gray-900">
+              <span className="text-2xl">🏥</span> Describe Your Community Health App
             </CardTitle>
-            <CardDescription>
-              Tell us about the health workflows, forms, and tasks you need. You can type or use voice input.
+            <CardDescription className="text-gray-600">
+              Tell us about the health workflows, forms, and tasks you need. You can type or use voice input to describe your requirements.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -208,7 +204,7 @@ const Index = () => {
                 placeholder="Example: I need an app to track maternal health visits, register pregnant women, monitor their health during pregnancy, and send reminders for appointments and vaccinations..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="min-h-32 pr-16 text-base resize-none"
+                className="min-h-32 pr-16 text-base resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500"
               />
               <div className="absolute top-3 right-3">
                 <Button
@@ -225,7 +221,7 @@ const Index = () => {
             <Button 
               onClick={generateAppConfig} 
               disabled={isGenerating || !description.trim()}
-              className="w-full h-12 text-lg bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700"
+              className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700 text-white"
             >
               {isGenerating ? (
                 <>
@@ -244,13 +240,13 @@ const Index = () => {
 
         {/* Generated Config */}
         {generatedConfig && (
-          <Card className="shadow-lg border-0">
+          <Card className="shadow-lg border-0 bg-white">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                ⚙️ Your App Configuration
+              <CardTitle className="flex items-center gap-2 text-gray-900">
+                <span className="text-2xl">⚙️</span> Your App Configuration
               </CardTitle>
-              <CardDescription>
-                Generated CHT configuration based on your description
+              <CardDescription className="text-gray-600">
+                Generated Community Health Toolkit configuration based on your description
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -265,32 +261,32 @@ const Index = () => {
 
         {/* Preview */}
         {generatedConfig && (
-          <Card className="shadow-lg border-0">
+          <Card className="shadow-lg border-0 bg-white">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                📱 Preview (Mock)
+              <CardTitle className="flex items-center gap-2 text-gray-900">
+                <span className="text-2xl">📱</span> App Preview
               </CardTitle>
-              <CardDescription>
-                This is a static preview. Deploy to live CHT coming soon!
+              <CardDescription className="text-gray-600">
+                Preview of your Community Health Toolkit app structure
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Forms Preview */}
               <div>
-                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-gray-900">
                   📋 Forms
                 </h3>
                 <div className="grid gap-3">
                   {generatedConfig.forms.map((form, index) => (
-                    <div key={index} className="border rounded-lg p-4 bg-blue-50">
+                    <div key={index} className="border rounded-lg p-4 bg-blue-50 border-blue-200">
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">{form.name}</h4>
-                        <Badge variant="secondary">{form.fields.length} fields</Badge>
+                        <h4 className="font-medium text-gray-900">{form.name}</h4>
+                        <Badge variant="secondary" className="bg-blue-100 text-blue-800">{form.fields.length} fields</Badge>
                       </div>
                       <p className="text-sm text-gray-600 mb-2">{form.purpose}</p>
                       <div className="flex flex-wrap gap-1">
                         {form.fields.map((field, fieldIndex) => (
-                          <Badge key={fieldIndex} variant="outline" className="text-xs">
+                          <Badge key={fieldIndex} variant="outline" className="text-xs border-blue-300 text-blue-700">
                             {field}
                           </Badge>
                         ))}
@@ -304,15 +300,15 @@ const Index = () => {
 
               {/* Tasks Preview */}
               <div>
-                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-gray-900">
                   ✅ Sample Tasks
                 </h3>
                 <div className="grid gap-3">
                   {generatedConfig.tasks.map((task, index) => (
-                    <div key={index} className="border rounded-lg p-4 bg-green-50">
+                    <div key={index} className="border rounded-lg p-4 bg-green-50 border-green-200">
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">{task.type}</h4>
-                        <Badge variant="secondary">{task.frequency}</Badge>
+                        <h4 className="font-medium text-gray-900">{task.type}</h4>
+                        <Badge variant="secondary" className="bg-green-100 text-green-800">{task.frequency}</Badge>
                       </div>
                       <p className="text-sm text-gray-600">{task.description}</p>
                     </div>
@@ -324,12 +320,12 @@ const Index = () => {
 
               {/* Reports Preview */}
               <div>
-                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-gray-900">
                   📊 Available Reports
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {generatedConfig.reports.map((report, index) => (
-                    <Badge key={index} variant="outline" className="text-sm">
+                    <Badge key={index} variant="outline" className="text-sm border-gray-300 text-gray-700">
                       {report}
                     </Badge>
                   ))}
@@ -341,18 +337,18 @@ const Index = () => {
 
         {/* Actions */}
         {generatedConfig && (
-          <Card className="shadow-lg border-0">
+          <Card className="shadow-lg border-0 bg-white">
             <CardContent className="pt-6">
               <div className="flex flex-col sm:flex-row gap-3">
-                <Button onClick={exportConfig} variant="outline" className="flex-1">
+                <Button onClick={exportConfig} variant="outline" className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50">
                   <Download className="mr-2 h-4 w-4" />
                   Export Config (JSON)
                 </Button>
-                <Button disabled className="flex-1 bg-gray-400">
+                <Button disabled className="flex-1 bg-gray-400 text-white">
                   <Rocket className="mr-2 h-4 w-4" />
-                  Deploy to Preview Instance (Coming Soon)
+                  Deploy to CHT Instance (Coming Soon)
                 </Button>
-                <Button onClick={startOver} variant="outline">
+                <Button onClick={startOver} variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Start Over
                 </Button>
