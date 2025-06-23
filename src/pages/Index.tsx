@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Mic, MicOff, Download, Rocket, RefreshCw, Loader2, Settings } from 'lucide-react';
+
+import React, { useState } from 'react';
+import { Mic, MicOff, Download, Rocket, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { MedicHeader } from '@/components/MedicHeader';
 import { MedicHero } from '@/components/MedicHero';
@@ -28,10 +27,9 @@ interface AppConfig {
   reports: string[];
 }
 
-interface OpenAISettings {
-  apiKey: string;
-  assistantId: string;
-}
+// Hardcoded API credentials
+const OPENAI_API_KEY = '***REMOVED_API_KEY***';
+const ASSISTANT_ID = 'asst_eJtwRZyQWo8BBiJ6og26FhYs';
 
 const Index = () => {
   const [description, setDescription] = useState('');
@@ -39,26 +37,7 @@ const Index = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedConfig, setGeneratedConfig] = useState<AppConfig | null>(null);
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
-  const [openAISettings, setOpenAISettings] = useState<OpenAISettings>({
-    apiKey: '***REMOVED_API_KEY***',
-    assistantId: 'asst_eJtwRZyQWo8BBiJ6og26FhYs'
-  });
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { toast } = useToast();
-
-  // Load settings from localStorage on component mount
-  useEffect(() => {
-    const savedSettings = localStorage.getItem('openai-settings');
-    if (savedSettings) {
-      const parsed = JSON.parse(savedSettings);
-      setOpenAISettings(prev => ({ ...prev, ...parsed }));
-    }
-  }, []);
-
-  // Save settings to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('openai-settings', JSON.stringify(openAISettings));
-  }, [openAISettings]);
 
   const startVoiceRecording = () => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -122,7 +101,7 @@ const Index = () => {
       const threadResponse = await fetch('https://api.openai.com/v1/threads', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openAISettings.apiKey}`,
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
           'Content-Type': 'application/json',
           'OpenAI-Beta': 'assistants=v2'
         },
@@ -139,7 +118,7 @@ const Index = () => {
       const messageResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openAISettings.apiKey}`,
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
           'Content-Type': 'application/json',
           'OpenAI-Beta': 'assistants=v2'
         },
@@ -157,12 +136,12 @@ const Index = () => {
       const runResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openAISettings.apiKey}`,
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
           'Content-Type': 'application/json',
           'OpenAI-Beta': 'assistants=v2'
         },
         body: JSON.stringify({
-          assistant_id: openAISettings.assistantId
+          assistant_id: ASSISTANT_ID
         })
       });
 
@@ -179,7 +158,7 @@ const Index = () => {
         
         const statusResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs/${run.id}`, {
           headers: {
-            'Authorization': `Bearer ${openAISettings.apiKey}`,
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
             'OpenAI-Beta': 'assistants=v2'
           }
         });
@@ -198,7 +177,7 @@ const Index = () => {
       // Get the messages
       const messagesResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
         headers: {
-          'Authorization': `Bearer ${openAISettings.apiKey}`,
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
           'OpenAI-Beta': 'assistants=v2'
         }
       });
@@ -245,16 +224,6 @@ const Index = () => {
       return;
     }
 
-    if (!openAISettings.apiKey || !openAISettings.assistantId) {
-      toast({
-        title: "OpenAI settings required",
-        description: "Please configure your OpenAI API key and Assistant ID in settings.",
-        variant: "destructive",
-      });
-      setIsSettingsOpen(true);
-      return;
-    }
-
     setIsGenerating(true);
 
     try {
@@ -269,7 +238,7 @@ const Index = () => {
       console.error('Generation error:', error);
       toast({
         title: "Generation failed",
-        description: "Failed to generate app configuration. Please check your settings and try again.",
+        description: "Failed to generate app configuration. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -304,59 +273,12 @@ const Index = () => {
     });
   };
 
-  const saveSettings = () => {
-    setIsSettingsOpen(false);
-    toast({
-      title: "Settings saved",
-      description: "Your OpenAI configuration has been saved.",
-    });
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       <MedicHeader />
       <MedicHero />
       
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-        {/* Settings Dialog */}
-        <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" className="fixed top-4 right-4 z-10">
-              <Settings className="h-4 w-4" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>OpenAI Assistant Settings</DialogTitle>
-              <DialogDescription>
-                Configure your OpenAI API key and Assistant ID to generate CHT app configurations.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">OpenAI API Key</label>
-                <Input
-                  type="password"
-                  value={openAISettings.apiKey}
-                  onChange={(e) => setOpenAISettings(prev => ({ ...prev, apiKey: e.target.value }))}
-                  placeholder="sk-proj-..."
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Assistant ID</label>
-                <Input
-                  value={openAISettings.assistantId}
-                  onChange={(e) => setOpenAISettings(prev => ({ ...prev, assistantId: e.target.value }))}
-                  placeholder="asst_..."
-                />
-              </div>
-              <Button onClick={saveSettings} className="w-full">
-                Save Settings
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
         {/* Input Section */}
         <Card className="shadow-lg border-0 bg-white">
           <CardHeader>
