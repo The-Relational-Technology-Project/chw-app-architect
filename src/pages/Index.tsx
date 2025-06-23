@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Mic, MicOff, Download, Rocket, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -205,7 +204,7 @@ const Index = () => {
         throw new Error('No valid JSON found in assistant response');
       }
 
-      const parsedConfig = JSON.parse(jsonMatch[0]);
+      const parsedConfig = JSON.parse(jsonMatch[1] || jsonMatch[0]);
       return parsedConfig;
 
     } catch (error) {
