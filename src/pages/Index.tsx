@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Mic, MicOff, Download, Rocket, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import '../types/speech';
 
 interface AppConfig {
   appName: string;
