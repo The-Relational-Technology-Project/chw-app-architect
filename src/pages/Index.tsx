@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Mic, MicOff, Download, Rocket, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
